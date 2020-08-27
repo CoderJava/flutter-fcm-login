@@ -35,6 +35,9 @@ dependencies:
   # Flutter plugin for reading and writing simple key-value pairs.
   shared_preferences: ^0.5.10
 
+  # A cross platform plugin for displaying and scheduling local notifications for Flutter.
+  flutter_local_notifications: ^1.4.4+4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(App());
@@ -39,14 +40,16 @@ Future<dynamic> onBackgroundMessageHandler(Map<String, dynamic> message) async {
   var sharedPreferences = await SharedPreferences.getInstance();
   var isLogin = sharedPreferences.getBool('isLogin') ?? false;
   if (isLogin) {
-    // TODO: tampilkan lokal notifikasi
+    var title = '-';
     var content = '-';
     if (Platform.isIOS) {
+      title = message['title'];
       content = message['content'];
     } else {
+      title = message['data']['title'];
       content = message['data']['content'];
     }
-    debugPrint('content: $content');
+    _showLocalNotification(title, content);
   }
   return true;
 }
@@ -179,20 +182,34 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            RaisedButton(
-              child: Text('GET TOKEN'),
-              onPressed: () {
-                firebaseMessaging.requestNotificationPermissions(
-                  const IosNotificationSettings(),
-                );
-                firebaseMessaging.onIosSettingsRegistered.listen((event) {
-                  debugPrint('IOS settings registered');
-                });
-                firebaseMessaging.getToken().then((value) => setState(() {
-                  tokenFcm = value;
-                  debugPrint('tokenFcm: $tokenFcm');
-                }));
-              },
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                RaisedButton(
+                  child: Text('GET TOKEN'),
+                  onPressed: () {
+                    firebaseMessaging.requestNotificationPermissions(
+                      const IosNotificationSettings(),
+                    );
+                    firebaseMessaging.onIosSettingsRegistered.listen((event) {
+                      debugPrint('IOS settings registered');
+                    });
+                    firebaseMessaging.getToken().then((value) => setState(() {
+                          tokenFcm = value;
+                          debugPrint('tokenFcm: $tokenFcm');
+                        }));
+                  },
+                ),
+                SizedBox(width: 16),
+                RaisedButton(
+                  child: Text('LOGOUT'),
+                  onPressed: () async {
+                    var sharedPreferences = await SharedPreferences.getInstance();
+                    sharedPreferences.remove('isLogin');
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage()));
+                  },
+                ),
+              ],
             ),
             Text(tokenFcm),
           ],
@@ -200,14 +217,38 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
 
-  void _getDataFcm(Map<String, dynamic> message) {
-    var content = '';
-    if (Platform.isIOS) {
-      content = message['content'];
-    } else {
-      content = message['data']['content'];
-    }
-    debugPrint('content: $content');
+void _getDataFcm(Map<String, dynamic> message) {
+  var title = '-';
+  var content = '-';
+  if (Platform.isIOS) {
+    title = message['title'];
+    content = message['content'];
+  } else {
+    title = message['data']['title'];
+    content = message['data']['content'];
   }
+  _showLocalNotification(title, content);
+}
+
+void _showLocalNotification(String title, String content) {
+  var initializationSettingsAndroid = AndroidInitializationSettings('ic_launcher');
+  var initializationSettingsIOS = IOSInitializationSettings();
+  var initializationSettings = InitializationSettings(
+    initializationSettingsAndroid,
+    initializationSettingsIOS,
+  );
+  var flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'test channel id',
+    'test channel name',
+    'test channel description',
+    importance: Importance.Max,
+    priority: Priority.High,
+  );
+  var iosPlatformChannelSpecifics = IOSNotificationDetails();
+  var platformChannelSpecifics = NotificationDetails(androidPlatformChannelSpecifics, iosPlatformChannelSpecifics);
+  flutterLocalNotificationsPlugin.show(1, title, content, platformChannelSpecifics);
 }
